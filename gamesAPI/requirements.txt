@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+SQLAlchemy
+pydantic
+mcp==1.9.0
