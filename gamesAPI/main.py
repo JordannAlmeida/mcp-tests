@@ -4,6 +4,9 @@ from controllers import game_controller
 from multiprocessing import Process
 import uvicorn
 import asyncio
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file  
 
 Base.metadata.create_all(bind=engine) # Create database tables
 
@@ -44,16 +47,7 @@ def init_db():
         db.close()
 
 def start_fastmcp_server():
-
-    from mcp.server.fastmcp import FastMCP
-    games_api_mcp = FastMCP(
-            name="Games API",
-            stateless_http=True,
-            port=8001    
-        )
-    from mcp_interface.games import McpGames
-    games_api_mcp = McpGames.add_games_mcp(games_api_mcp)
-
+    from mcp_interface.mpc_init import games_api_mcp
     print("Starting FastMCP server on port 8001...")
     asyncio.run(games_api_mcp.run_streamable_http_async())
     

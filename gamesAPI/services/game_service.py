@@ -22,7 +22,8 @@ class GameService:
         title: Optional[str] = None,
         category: Optional[str] = None,
         platform: Optional[str] = None,
-        year_of_creation: Optional[int] = None,
+        year_of_creation_min: Optional[int] = None,
+        year_of_creation_max: Optional[int] = None,
         skip: int = 0, 
         limit: int = 100
     ) -> List[models.Game]:
@@ -31,7 +32,8 @@ class GameService:
             title=title, 
             category=category, 
             platform=platform, 
-            year_of_creation=year_of_creation, 
+            year_of_creation_min=year_of_creation_min, 
+            year_of_creation_max=year_of_creation_max, 
             skip=skip, 
             limit=limit
         )

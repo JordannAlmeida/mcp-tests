@@ -2,4 +2,5 @@ fastapi
 uvicorn[standard]
 SQLAlchemy
 pydantic
+python-dotenv
 mcp==1.9.0

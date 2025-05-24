@@ -19,7 +19,8 @@ class GameRepository:
         title: Optional[str] = None,
         category: Optional[str] = None,
         platform: Optional[str] = None,
-        year_of_creation: Optional[int] = None,
+        year_of_creation_min: Optional[int] = None,
+        year_of_creation_max: Optional[int] = None,
         skip: int = 0, 
         limit: int = 100
     ) -> List[models.Game]:
@@ -30,8 +31,10 @@ class GameRepository:
             query = query.filter(models.Game.category.contains(category))
         if platform:
             query = query.filter(models.Game.platform.contains(platform))
-        if year_of_creation:
-            query = query.filter(models.Game.year_of_creation == year_of_creation)
+        if year_of_creation_min is not None:
+            query = query.filter(models.Game.year_of_creation >= year_of_creation_min)
+        if year_of_creation_max is not None:
+            query = query.filter(models.Game.year_of_creation <= year_of_creation_max)
         return query.offset(skip).limit(limit).all()
 
     @staticmethod

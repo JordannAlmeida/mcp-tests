@@ -4,7 +4,6 @@ from typing import List, Optional
 from services.game_service import GameService
 from schemas import Game, GameCreate, GameUpdate
 from database import get_db
-import mcp
 
 router = APIRouter(
     prefix="/games",
@@ -22,7 +21,8 @@ def read_games_endpoint(
     title: Optional[str] = Query(None, description="Part of the game title to search for"),
     category: Optional[str] = Query(None, description="Category of the game"),
     platform: Optional[str] = Query(None, description="Platform of the game"),
-    year_of_creation: Optional[int] = Query(None, description="Year of creation of the game"),
+    year_of_creation_min: Optional[int] = Query(None, description="Minimum year of creation (inclusive)"),
+    year_of_creation_max: Optional[int] = Query(None, description="Maximum year of creation (inclusive)"),
     skip: int = 0,
     limit: int = 100
 ):
@@ -31,7 +31,8 @@ def read_games_endpoint(
         title=title, 
         category=category, 
         platform=platform, 
-        year_of_creation=year_of_creation, 
+        year_of_creation_min=year_of_creation_min, 
+        year_of_creation_max=year_of_creation_max, 
         skip=skip, 
         limit=limit
     )
