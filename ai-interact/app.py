@@ -6,27 +6,25 @@ import io
 # --- Page Configuration ---
 st.set_page_config(page_title="Gemini Chat", layout="wide")
 
-# --- Load API Key and Initialize Model ---
-
-chat_logic: ChatLogic = None
-
-try:
-    chat_logic = ChatLogic()
-except ValueError as e:
-    st.error(e)
-    st.stop()
-except Exception as e:
-    st.error(f"An unexpected error occurred during initialization: {e}")
-    st.stop()
-
 # --- Session State Initialization ---
+if "chat_logic" not in st.session_state:
+    try:
+        print("Initializing new chat logic...")
+        st.session_state.chat_logic = ChatLogic()
+    except ValueError as e:
+        st.error(e)
+        st.stop()
+    except Exception as e:
+        st.error(f"An unexpected error occurred during initialization: {e}")
+        st.stop()
+
 if "messages" not in st.session_state:
     st.session_state.messages = [] # Stores chat messages: {"role": "user/assistant", "content": "message"}
 if "llm_type" not in st.session_state:
     st.session_state.llm_type = LLMType.GEMINI.name
 
 # --- UI Elements ---
-st.title("Chat with Gemini ♊")
+st.title("Chat Robot MPC")
 
 # Sidebar for controls
 with st.sidebar:
@@ -37,7 +35,8 @@ with st.sidebar:
         st.session_state.llm_type = selected_llm_type
     if st.button("New Chat", key="new_chat_button"):
         st.session_state.messages = []
-        chat_logic.start_new_chat(LLMType[st.session_state.llm_type])
+        print("Initializing new chat logic...")
+        st.session_state.chat_logic.start_new_chat(LLMType[st.session_state.llm_type])
         st.rerun()
 
 # --- Chat Interface ---
@@ -86,7 +85,7 @@ if prompt:
     # Generate and display assistant response
     with st.chat_message("assistant"):
         with st.spinner("Gemini is thinking..."):
-            response = chat_logic.get_response(prompt, files=files_io)
+            response = st.session_state.chat_logic.get_response(prompt, files=files_io)
             st.markdown(response)
     # Add assistant response to chat history
     st.session_state.messages.append({"role": "assistant", "content": response})

@@ -19,6 +19,7 @@ class GeminiManager(BaseLLM):
     def __init__(self):
         self.model = "gemini-2.0-flash"
         self.api_key = os.getenv("GOOGLE_API_KEY")
+        self.mcp_client_manager = ClientMcpManager()
         self.chat: Chat = None
         self.client: genai.Client = None
 
@@ -29,8 +30,8 @@ class GeminiManager(BaseLLM):
         mcp_tools: list[Tool]
         tools_config: Optional[ToolConfig]
         try :
-            mcp_model: McpClientModels = asyncio.run(ClientMcpManager.get_mcp_client_models())
-            mcp_tools = GeminiManager.__getTools_gemini_format(mcp_model.list_tools)
+            mcp_models: list[McpClientModels] = asyncio.run(self.mcp_client_manager.get_mcp_client_models())
+            mcp_tools = GeminiManager.__extract_gemini_tools(mcp_models)
             tools_config=ToolConfig(
                 function_calling_config=FunctionCallingConfig(
                     mode=FunctionCallingConfigMode.AUTO,
@@ -50,6 +51,55 @@ class GeminiManager(BaseLLM):
                 tool_config=tools_config
             )
         )
+    
+    @staticmethod
+    def __extract_gemini_tools(mcp_models: list[McpClientModels]) -> list[types.Tool]:
+        """
+        Extracts tools from the MCP models and returns them as a list of Tool objects.
+        Filters out unsupported keys from parameter properties to avoid validation errors.
+        Also removes unsupported 'format' key from string properties.
+        """
+        list_tools: list[types.Tool] = []
+        # Keys to remove from parameter properties
+        unsupported_keys = {"exclusiveMaximum", "exclusiveMinimum", "anyOf", "allOf", "oneOf", "not", "examples"}
+        for mcp_model in mcp_models:
+            for tool in mcp_model.list_tools:
+                # Deep copy and filter unsupported keys from properties
+                filtered_parameters = {}
+                for k, v in tool.inputSchema.items():
+                    if k == "properties" and isinstance(v, dict):
+                        filtered_properties = {}
+                        for prop_name, prop_val in v.items():
+                            if isinstance(prop_val, dict):
+                                # Remove unsupported keys
+                                filtered_prop_val = {pk: pv for pk, pv in prop_val.items() if pk not in unsupported_keys}
+                                # Remove 'format' key if type is 'string' and format is not supported
+                                if filtered_prop_val.get("type") == "string" and "format" in filtered_prop_val:
+                                    if filtered_prop_val["format"] not in ["enum", "date-time"]:
+                                        filtered_prop_val.pop("format")
+                                filtered_properties[prop_name] = filtered_prop_val
+                            else:
+                                filtered_properties[prop_name] = prop_val
+                        filtered_parameters["properties"] = filtered_properties
+                    else:
+                        filtered_parameters[k] = v
+                list_tools.append(
+                    types.Tool(
+                        function_declarations=[
+                            {
+                                "name": tool.name,
+                                "description": tool.description,
+                                "parameters": filtered_parameters,
+                                "response": types.Schema(
+                                    type='STRING',
+                                    description="Indicate if the response was successful or failed",
+                                    title="message",
+                                )
+                            }
+                        ]
+                    )
+                )
+        return list_tools
 
     def generate_response(self, prompt: str = "", files: list[dict[str, BytesIO]] = None):
         self.generate_response(
@@ -63,6 +113,7 @@ class GeminiManager(BaseLLM):
         Generates a response from the Gemini model. Optionally accepts files as BytesIO (not used yet).
         """
         try:
+            print(f"Chat history size --------------------- : {len(self.chat.get_history())}")
             inputs_gemini = []
             if files is not None:
                 for file in files:
@@ -82,16 +133,24 @@ class GeminiManager(BaseLLM):
                 list_parts_with_function_response = []
                 for part in parts_response:
                     function_call: FunctionCall = part.function_call
+                    if (function_call is None):
+                        continue
                     call_tool_result: CallToolResult = None
-                    call_tool_result = asyncio.run(ClientMcpManager.call_tool(function_call.name, function_call.args))
+                    call_tool_result = asyncio.run(self.mcp_client_manager.call_tool(function_call.name, function_call.args))
                     if( call_tool_result is None or call_tool_result.isError):
                         return f"Error: No response from function call {function_call.name}"
                     content = call_tool_result.content[0]
                     if content is None:
                         return f"Error: No content from function call {function_call.name}"
-                    dict_from_text_content: dict[str, Any] = {
-                        "response": json.loads(content.text)
-                    }
+                    dict_from_text_content: dict[str, Any] = {}
+                    try:
+                        dict_from_text_content = {
+                            "response": json.loads(content.text)
+                        }
+                    except (json.JSONDecodeError, TypeError):
+                        dict_from_text_content = {
+                            "response": content.text
+                        }
                     function_response = FunctionResponse(
                         id=function_call.id,
                         name=function_call.name,
@@ -109,27 +168,3 @@ class GeminiManager(BaseLLM):
         except Exception as e:
             traceback.print_exc()
             return f"Error generating response: {str(e)}"
-
-    @staticmethod
-    def __getTools_gemini_format(list_tools: list[Tool]) -> list[types.Tool]:
-        return [
-                types.Tool(
-                    function_declarations=[
-                        {
-                            "name": tool.name,
-                            "description": tool.description,
-                            "parameters": {
-                                k: v
-                                for k, v in tool.inputSchema.items()
-                                if k not in ["additionalProperties", "$schema"]
-                            },
-                            "response": types.Schema(
-                                type='STRING',
-                                description="Indicate if the response was successful or failed",
-                                title="message",
-                            )
-                        }
-                    ]
-                )
-                for tool in list_tools
-            ]

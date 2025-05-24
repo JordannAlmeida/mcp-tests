@@ -1,43 +1,35 @@
-from mcp.client.streamable_http import streamablehttp_client
-from mcp import ClientSession
-from mcp.types import CallToolResult
-from os import environ
-from typing import Any
+from .mcp_games_client import McpGamesClient
+from .fetch_client_mcp import FetchClientMCP
+from .mcp_client_base import McpClientBase
 from .mcp_client_models import McpClientModels
+from mcp.types import CallToolResult
+from typing import Any
+import asyncio
+
 
 class ClientMcpManager:
 
-    @staticmethod
-    async def get_mcp_client_models() -> McpClientModels:
-        route_mcp = environ.get("ROUTE_MCP_SERVER", "")
-        print(f"ROUTE_MCP_SERVER: {route_mcp}")
-        async with streamablehttp_client(route_mcp) as (
-            read_stream,
-            write_stream,
-            _,
-        ):
-            async with ClientSession(read_stream, write_stream) as session:
-                await session.initialize();
-                mcp_tools = await session.list_tools()
-                resources = await session.list_resources()
-                prompts = await session.list_prompts()
-                mcp_client_models = McpClientModels(
-                    list_tools=mcp_tools.tools,
-                    list_resources=resources.resources,
-                    list_prompts=prompts.prompts
-                )
-                return mcp_client_models
+    def __init__(self):
+        self.mcp_clients: dict[str, McpClientBase] = self.__add_mcp_clients()
+
+    async def get_mcp_client_models(self) -> list[McpClientModels]:
+        tasks = [client.get_mcp_client_models() for client in self.mcp_clients.values()]
+        return await asyncio.gather(*tasks)
     
-    @staticmethod
-    async def call_tool(name: str, args: dict[str, Any]) -> CallToolResult:
-        print(f"Calling tool: {name} with args: {args}")
-        route_mcp = environ.get("ROUTE_MCP_SERVER", "")
-        async with streamablehttp_client(route_mcp) as (
-            read_stream,
-            write_stream,
-            _,
-        ):
-            async with ClientSession(read_stream, write_stream) as session:
-                await session.initialize()
-                response = await session.call_tool(name, args)
-                return response
+    async def call_tool(self, name: str, args: dict[str, Any]) -> CallToolResult:
+        client: McpClientBase = self.__get_client_by_tool_name(name)
+        if client:
+            return await client.call_tool(name.split(McpClientBase.get_caracter_separator_identifier())[1], args)
+        else:
+            raise ValueError(f"No client found for tool name: {name}")
+        
+    def __get_client_by_tool_name(self, name: str) -> McpClientBase | None:
+        key_client = f"{name.split(McpClientBase.get_caracter_separator_identifier())[0]}{McpClientBase.get_caracter_separator_identifier()}"
+        return  self.mcp_clients.get(key_client, None)
+
+
+    def __add_mcp_clients(self) -> dict[str, McpClientBase]:
+        mcp_clients = {}
+        mcp_clients[McpGamesClient.get_prefix_identifier()] = McpGamesClient()
+        mcp_clients[FetchClientMCP.get_prefix_identifier()] = FetchClientMCP()
+        return mcp_clients
