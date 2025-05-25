@@ -1,6 +1,6 @@
 from mcp.server.fastmcp import FastMCP
 from mcp.types import Resource
-from .games import mcp_create_game, mcp_get_game_by_id, mcp_list_games
+from .games import mcp_create_game, mcp_get_game_by_id, mcp_list_games, mcp_delete_game_by_id
 from os import environ
 
 games_api_mcp = FastMCP(
@@ -38,4 +38,10 @@ games_api_mcp.add_tool(
     fn=mcp_list_games,
     name="list_games",
     description="List games from Games API with optional filters",
+)
+
+games_api_mcp.add_tool(
+    fn=mcp_delete_game_by_id,
+    name="delete_game_by_id",
+    description="Delete a game by its ID from Games API",
 )

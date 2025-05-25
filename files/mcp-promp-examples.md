@@ -31,3 +31,11 @@ for each game in next list, insert it in games api:
     }
 ]
 ```
+
+
+with video_game_data:
+
+Insert all games in this document to my games api. you must use the follow rule to validate if game will add or not:
+
+if game year of creation is after 2000 and platform is a type of 'playstation', insert it
+else don't insert

@@ -115,4 +115,24 @@ def mcp_list_games(
     finally:
         db.close()
 
+def mcp_delete_game_by_id(game_id: int) -> dict[str, str]:
+    """
+    Deletes a game by its ID.
+    Args:
+        game_id (int): The ID of the game to delete.
+    Returns:
+        dict[str, str]: A message indicating whether the deletion was successful or not.
+    """
+    db = SessionLocal()
+    try:
+        deleted_game = GameService.delete_game(db=db, game_id=game_id)
+        if deleted_game is None:
+            return {"message": f"Game with id {game_id} not found."}
+        return {"message": f"Game with id {game_id} deleted successfully."}
+    except Exception as e:
+        traceback.print_exc()
+        return {"message": f"Error deleting game: {str(e)}"}
+    finally:
+        db.close()
+
 

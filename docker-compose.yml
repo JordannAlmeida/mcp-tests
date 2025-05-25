@@ -1,0 +1,24 @@
+version: '3.8'
+services:
+  ai-interact:
+    build:
+      context: ./ai-interact
+    ports:
+      - "8501:8501"
+    networks:
+      - mcpnet
+    depends_on:
+      - gamesapi
+
+  gamesapi:
+    build:
+      context: ./gamesAPI
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    networks:
+      - mcpnet
+
+networks:
+  mcpnet:
+    driver: bridge
